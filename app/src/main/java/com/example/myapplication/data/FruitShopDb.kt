@@ -140,6 +140,80 @@ class FruitShopDb private constructor(context: Context) :
 
     fun deleteFruit(id: Long): Int = writableDatabase.delete("Fruit", "id = ?", arrayOf(id.toString()))
 
+    // ---------------- Order ----------------
+
+    /**
+     * Places an order, rejecting expired fruits and quantities above stock,
+     * and deducts the stock in the same transaction.
+     * Returns an error message, or null on success.
+     */
+    fun placeOrder(customerId: Long, fruitId: Long, quantity: Int): String? {
+        if (quantity <= 0) return "Quantity must be at least 1"
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            val fruit = getFruit(fruitId, db) ?: return "This fruit no longer exists"
+            if (fruit.isExpired) return "${fruit.name} expired on ${fruit.expiryDate} and cannot be ordered"
+            if (quantity > fruit.quantity) return "Only ${fruit.quantity} ${fruit.name} left in stock"
+            val values = ContentValues().apply {
+                put("customerId", customerId)
+                put("orderDate", DateUtils.now())
+                put("totalAmount", fruit.price * quantity)
+                put("status", OrderStatus.PENDING)
+                put("fruitId", fruitId)
+                put("quantity", quantity)
+            }
+            db.insertOrThrow(T_ORDER, null, values)
+            db.execSQL("UPDATE Fruit SET quantity = quantity - ? WHERE id = ?", arrayOf<Any>(quantity, fruitId))
+            db.setTransactionSuccessful()
+            return null
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+    fun getOrdersByCustomer(customerId: Long): List<Order> = queryOrders("WHERE o.customerId = ?", arrayOf(customerId.toString()))
+
+    fun getAllOrders(): List<Order> = queryOrders("", emptyArray())
+
+    fun updateOrderStatus(orderId: Long, status: String): Int =
+        writableDatabase.update(
+            T_ORDER,
+            ContentValues().apply { put("status", status) },
+            "id = ?",
+            arrayOf(orderId.toString())
+        )
+
+    private fun queryOrders(where: String, args: Array<String>): List<Order> =
+        readableDatabase.rawQuery(
+            """SELECT o.*, COALESCE(f.name, 'Deleted fruit') AS fruitName, c.fullname AS customerName
+               FROM $T_ORDER o
+               LEFT JOIN Fruit f ON f.id = o.fruitId
+               LEFT JOIN Customer c ON c.id = o.customerId
+               $where
+               ORDER BY o.id DESC""",
+            args
+        ).use { c ->
+            buildList {
+                while (c.moveToNext()) {
+                    val fruitIdIdx = c.getColumnIndexOrThrow("fruitId")
+                    add(
+                        Order(
+                            id = c.long("id"),
+                            customerId = c.long("customerId"),
+                            orderDate = c.str("orderDate"),
+                            totalAmount = c.double("totalAmount"),
+                            status = c.str("status"),
+                            fruitId = if (c.isNull(fruitIdIdx)) null else c.getLong(fruitIdIdx),
+                            quantity = c.int("quantity"),
+                            fruitName = c.str("fruitName"),
+                            customerName = c.str("customerName")
+                        )
+                    )
+                }
+            }
+        }
+
     // ---------------- Helpers ----------------
 
     private fun accountValues(username: String, password: String, role: String) = ContentValues().apply {

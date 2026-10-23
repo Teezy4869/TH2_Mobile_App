@@ -6,6 +6,7 @@ import android.app.DatePickerDialog
 import android.widget.Toast
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -17,10 +18,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
@@ -41,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import com.example.myapplication.data.DateUtils
 import com.example.myapplication.data.Fruit
 import com.example.myapplication.data.FruitShopDb
+import com.example.myapplication.data.OrderStatus
 import java.util.Calendar
 import java.util.Locale
 
@@ -82,7 +87,7 @@ fun AdminScreen(db: FruitShopDb, username: String, onLogout: () -> Unit) {
                     onChanged = { refresh++ }
                 )
             } else {
-                EmptyMessage("Quản lý đơn hàng: làm ở đợt 3")
+                AdminOrdersTab(db)
             }
         }
     }
@@ -242,4 +247,68 @@ private fun FruitFormDialog(initial: Fruit?, onDismiss: () -> Unit, onSave: (Fru
         confirmButton = { TextButton(onClick = ::save) { Text("Save") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
+}
+
+@Composable
+private fun AdminOrdersTab(db: FruitShopDb) {
+    var refresh by remember { mutableIntStateOf(0) }
+    var statusFilter by rememberSaveable { mutableStateOf<String?>(null) }
+    val orders = remember(refresh) { db.getAllOrders() }
+    val shown = statusFilter?.let { s -> orders.filter { it.status == s } } ?: orders
+
+    Column(Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            FilterChip(
+                selected = statusFilter == null,
+                onClick = { statusFilter = null },
+                label = { Text("All (${orders.size})") }
+            )
+            OrderStatus.ALL.forEach { status ->
+                FilterChip(
+                    selected = statusFilter == status,
+                    onClick = { statusFilter = status },
+                    label = { Text("$status (${orders.count { it.status == status }})") }
+                )
+            }
+        }
+        LazyColumn(
+            contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (shown.isEmpty()) item { EmptyMessage("No orders yet") }
+            items(shown, key = { it.id }) { order ->
+                OrderCard(order, showCustomer = true) {
+                    StatusSelector(current = order.status) { newStatus ->
+                        db.updateOrderStatus(order.id, newStatus)
+                        refresh++
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatusSelector(current: String, onSelect: (String) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        OutlinedButton(onClick = { expanded = true }) { Text("Set status ▾") }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            OrderStatus.ALL.forEach { status ->
+                DropdownMenuItem(
+                    text = { Text(if (status == current) "$status ✓" else status) },
+                    enabled = status != current,
+                    onClick = {
+                        expanded = false
+                        onSelect(status)
+                    }
+                )
+            }
+        }
+    }
 }

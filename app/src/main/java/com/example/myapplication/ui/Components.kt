@@ -25,6 +25,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.myapplication.data.DateUtils
 import com.example.myapplication.data.Fruit
+import com.example.myapplication.data.Order
+import com.example.myapplication.data.OrderStatus
 import java.util.Locale
 
 private val Warning = Color(0xFFE65100)
@@ -79,6 +81,17 @@ fun ExpiryPill(expiryDate: String) {
 }
 
 @Composable
+fun StatusPill(status: String) {
+    val color = when (status) {
+        OrderStatus.PENDING -> Warning
+        OrderStatus.CONFIRMED -> Info
+        OrderStatus.COMPLETED -> Success
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Pill(status, color)
+}
+
+@Composable
 fun FruitCard(fruit: Fruit, actions: @Composable RowScope.() -> Unit) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
@@ -113,6 +126,38 @@ fun FruitCard(fruit: Fruit, actions: @Composable RowScope.() -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
                 content = actions
             )
+        }
+    }
+}
+
+@Composable
+fun OrderCard(order: Order, showCustomer: Boolean, actions: @Composable RowScope.() -> Unit = {}) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Order #${order.id}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f)
+                )
+                StatusPill(order.status)
+            }
+            if (showCustomer) Text("Customer: ${order.customerName}", style = MaterialTheme.typography.bodyMedium)
+            Text("${order.fruitName} × ${order.quantity}", style = MaterialTheme.typography.bodyMedium)
+            Text(
+                "Ordered: ${order.orderDate}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Total: ${formatPrice(order.totalAmount)}",
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+                actions()
+            }
         }
     }
 }

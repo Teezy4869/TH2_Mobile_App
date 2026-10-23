@@ -1,23 +1,12 @@
 package com.example.myapplication.ui
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import com.example.myapplication.data.Customer
 import com.example.myapplication.data.FruitShopDb
 import com.example.myapplication.data.Role
@@ -64,22 +53,6 @@ fun FruitShopApp() {
         }
 
         is Screen.Admin -> AdminScreen(db = db, username = s.username, onLogout = logout)
-        is Screen.CustomerHome -> PlaceholderHome("Hi, ${s.customer.fullname}", logout)
-    }
-}
-
-/** Temporary home screen until the Admin (round 2) and Customer (round 3) screens exist. */
-@Composable
-private fun PlaceholderHome(title: String, onLogout: () -> Unit) {
-    Scaffold { padding ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(title, style = MaterialTheme.typography.headlineSmall)
-            Text("Chức năng sẽ có ở đợt sau")
-            Button(onClick = onLogout) { Text("Logout") }
-        }
+        is Screen.CustomerHome -> CustomerScreen(db = db, customer = s.customer, onLogout = logout)
     }
 }
