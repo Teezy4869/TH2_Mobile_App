@@ -63,7 +63,7 @@ fun FruitShopApp() {
             RegisterScreen(db = db, onDone = { screen = Screen.Login })
         }
 
-        is Screen.Admin -> PlaceholderHome("Admin · ${s.username}", logout)
+        is Screen.Admin -> AdminScreen(db = db, username = s.username, onLogout = logout)
         is Screen.CustomerHome -> PlaceholderHome("Hi, ${s.customer.fullname}", logout)
     }
 }

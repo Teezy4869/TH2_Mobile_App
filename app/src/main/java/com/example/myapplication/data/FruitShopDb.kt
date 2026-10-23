@@ -117,6 +117,29 @@ class FruitShopDb private constructor(context: Context) :
                 } else null
             }
 
+    // ---------------- Fruit ----------------
+
+    /** Search by name or category. [inStockOnly] hides fruits with quantity 0. */
+    fun getFruits(query: String = "", inStockOnly: Boolean = false): List<Fruit> {
+        val like = "%${query.trim()}%"
+        val stockClause = if (inStockOnly) "AND quantity > 0" else ""
+        return readableDatabase.rawQuery(
+            "SELECT * FROM Fruit WHERE (name LIKE ? OR category LIKE ?) $stockClause ORDER BY name COLLATE NOCASE",
+            arrayOf(like, like)
+        ).use { c -> buildList { while (c.moveToNext()) add(c.toFruit()) } }
+    }
+
+    fun getFruit(id: Long, db: SQLiteDatabase = readableDatabase): Fruit? =
+        db.rawQuery("SELECT * FROM Fruit WHERE id = ?", arrayOf(id.toString()))
+            .use { c -> if (c.moveToFirst()) c.toFruit() else null }
+
+    fun insertFruit(fruit: Fruit): Long = writableDatabase.insert("Fruit", null, fruitValues(fruit))
+
+    fun updateFruit(fruit: Fruit): Int =
+        writableDatabase.update("Fruit", fruitValues(fruit), "id = ?", arrayOf(fruit.id.toString()))
+
+    fun deleteFruit(id: Long): Int = writableDatabase.delete("Fruit", "id = ?", arrayOf(id.toString()))
+
     // ---------------- Helpers ----------------
 
     private fun accountValues(username: String, password: String, role: String) = ContentValues().apply {
