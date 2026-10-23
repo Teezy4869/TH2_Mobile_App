@@ -104,11 +104,7 @@ fun LoginScreen(
             Button(onClick = ::submit, modifier = Modifier.fillMaxWidth()) { Text("Login") }
             TextButton(onClick = onRegisterClick) { Text("New customer? Create an account") }
             Spacer(Modifier.height(16.dp))
-            Text(
-                "Demo accounts — Admin: admin / admin123 · Customer: customer / 123456",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+
         }
     }
 }
