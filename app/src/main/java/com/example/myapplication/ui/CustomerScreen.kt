@@ -138,9 +138,17 @@ private fun ShopTab(db: FruitShopDb, refresh: Int, onOrder: (Fruit) -> Unit) {
 /** [onConfirm] returns an error message, or null when the order went through. */
 @Composable
 private fun OrderDialog(fruit: Fruit, onDismiss: () -> Unit, onConfirm: (Int) -> String?) {
+    val context = LocalContext.current
     var quantityText by rememberSaveable { mutableStateOf("1") }
     var error by remember { mutableStateOf<String?>(null) }
-    val quantity = quantityText.trim().toIntOrNull()
+    val trimmed = quantityText.trim()
+    val isFractional = trimmed.contains(".") || trimmed.contains(",") || (trimmed.toDoubleOrNull() != null && trimmed.toIntOrNull() == null)
+    val quantity = trimmed.toIntOrNull()
+
+    val displayError = when {
+        isFractional -> "Cannot purchase fractional quantity (e.g. 1.2, 1.5). Please enter a whole number."
+        else -> error
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -150,29 +158,49 @@ private fun OrderDialog(fruit: Fruit, onDismiss: () -> Unit, onConfirm: (Int) ->
                 Text("Unit price: ${formatPrice(fruit.price)} · In stock: ${fruit.quantity}")
                 ExpiryPill(fruit.expiryDate)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { quantityText = ((quantity ?: 1) - 1).coerceAtLeast(1).toString() }) { Text("−") }
+                    OutlinedButton(onClick = {
+                        val current = quantity ?: 1
+                        quantityText = (current - 1).coerceAtLeast(1).toString()
+                        error = null
+                    }) { Text("−") }
                     FormField(
                         "Quantity",
                         quantityText,
                         modifier = Modifier.weight(1f),
                         keyboardType = KeyboardType.Number
-                    ) { quantityText = it; error = null }
-                    OutlinedButton(onClick = { quantityText = ((quantity ?: 0) + 1).coerceAtMost(fruit.quantity).toString() }) { Text("+") }
+                    ) {
+                        quantityText = it
+                        error = null
+                    }
+                    OutlinedButton(onClick = {
+                        val current = quantity ?: 0
+                        quantityText = (current + 1).coerceAtMost(fruit.quantity).toString()
+                        error = null
+                    }) { Text("+") }
                 }
                 Text(
-                    "Total: ${formatPrice(fruit.price * (quantity ?: 0))}",
+                    if (quantity != null && quantity > 0) {
+                        "Total: ${formatPrice(fruit.price * quantity)}"
+                    } else {
+                        "Total: —"
+                    },
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
-                error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                displayError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             }
         },
         confirmButton = {
             TextButton(onClick = {
-                error = when {
+                val validationError = when {
+                    isFractional -> "Cannot purchase fractional quantity (e.g. 1.2, 1.5). Please enter a whole number."
                     quantity == null || quantity < 1 -> "Enter a quantity of at least 1"
                     quantity > fruit.quantity -> "Only ${fruit.quantity} left in stock"
                     else -> onConfirm(quantity)
+                }
+                if (validationError != null) {
+                    error = validationError
+                    Toast.makeText(context, validationError, Toast.LENGTH_SHORT).show()
                 }
             }) { Text("Place order") }
         },
